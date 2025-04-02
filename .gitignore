@@ -1,0 +1,5 @@
+# Ignore these folders
+
+outputs/
+virtual_env/
+data/
