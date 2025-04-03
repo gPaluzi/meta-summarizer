@@ -30,6 +30,17 @@ def concatenate_folder(root:str, file:str):
     return [station_id, camera_id, memory_id, mode, file_path]
 
 def initial_check(folder_path):
+
+    """
+    load the control sheet and check is the directory is already correct with the sheet
+
+    if something there is something miss, dont continue the process and check the corresponding one
+
+    q: what if there is something wrong and keep want to continue? so edit the folder name follow the control sheet
+
+    maybe its better to create the folder based on the control sheet...
+    """
+
     data = []
 
     for root, dirs, files in os.walk(folder_path):
@@ -88,6 +99,14 @@ def extract_vid_metadata(mp4_path):
 def create_photos_table(data: list):
     photos_data = []
     photo_id_counter = 1
+
+    """
+    inside for loop, check is the filepath is extracted in img/video table so its not extracted twice.
+
+    after the extraction add the new table to the existed one,
+
+    maybe its better to add this function in intitial check, add a new index in the data represent metadata presence by img/video path
+    """
 
     for row in data:
         _, camera_id, _, _, file_path = row

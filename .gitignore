@@ -3,3 +3,4 @@
 outputs/
 virtual_env/
 data/
+src/__pycache__/
