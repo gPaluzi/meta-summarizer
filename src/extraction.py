@@ -4,7 +4,7 @@ import ffmpeg
 import pandas as pd
 from datetime import datetime
 
-def concatenate_folder(root:str, file:str):
+def concatenate_folder(root:str, file:str) -> list:
     
     if file.endswith((".JPG", ".MP4", ".MOV")):
 
@@ -29,7 +29,7 @@ def concatenate_folder(root:str, file:str):
                 
     return [station_id, camera_id, memory_id, mode, file_path]
 
-def initial_check(folder_path):
+def initial_check(folder_path) -> list:
 
     """
     load the control sheet and check is the directory is already correct with the sheet
@@ -38,7 +38,7 @@ def initial_check(folder_path):
 
     q: what if there is something wrong and keep want to continue? so edit the folder name follow the control sheet
 
-    maybe its better to create the folder based on the control sheet...
+    note: maybe its better to create the folder based on the control sheet...
     """
 
     data = []
@@ -46,6 +46,8 @@ def initial_check(folder_path):
     for root, dirs, files in os.walk(folder_path):
 
         for file in files:
+            if not file.endswith((".JPG", ".MP4", ".MOV")):
+                continue
             
             data.append(concatenate_folder(root, file))
 
@@ -88,7 +90,7 @@ def extract_vid_metadata(mp4_path):
         metadata = ffmpeg.probe(mp4_path, v='error', select_streams='v:0', show_entries='stream=codec_name,width,height,nb_frames,duration')
 
         datetime_str = metadata.get('streams')[0].get('tags', {}).get("creation_time", {})
-        dt = datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+        dt = datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S.%fZ')
         duration = metadata.get('streams')[0].get('duration')
 
         return [dt, duration]
@@ -117,13 +119,14 @@ def create_photos_table(data: list):
         print(f"extracting: {file_path}")
 
         maker, model, datetime = extract_img_metadata(file_path) 
-
+        
         photo_id = photo_id_counter
         photo_id_counter += 1
 
         photos_data.append([photo_id, camera_id, maker, model, datetime, file_path])
 
     photos_df = pd.DataFrame(photos_data, columns=["Photo_id", "Camera_id", "Maker", "Model", "Datetime", "File_path"])
+    photos_df["Datetime"] = pd.to_datetime(photos_df["Datetime"], format='%Y:%m:%d %H:%M:%S')
 
     return photos_df
 
