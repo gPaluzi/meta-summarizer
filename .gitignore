@@ -3,4 +3,7 @@
 outputs/
 virtual_env/
 data/
+src/
 src/__pycache__/
+gui/
+prototype.ipynb
