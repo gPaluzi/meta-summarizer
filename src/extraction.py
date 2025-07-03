@@ -172,3 +172,7 @@ def create_vid_table(data: list):
     video_df = pd.DataFrame(video_data, columns=["Video_id", "Camera_id", "Datetime", "Duration", "File_path"])
 
     return video_df
+
+
+if __name__ == "__main__":
+    pass
