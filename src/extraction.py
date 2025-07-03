@@ -2,7 +2,22 @@ import os
 import exifread
 import ffmpeg
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
+import piexif
+from PIL import Image
+
+def load_control_sheet(folder_path):
+
+    for root, dirs, files in os.walk(folder_path):
+        for file in files:
+            if file.endswith(".csv"):
+                path = os.path.join(root, file)
+                break
+        if path:
+            break
+
+    sheet = pd.read_csv(path)
+    return sheet
 
 def concatenate_folder(root:str, file:str) -> list:
     
@@ -10,6 +25,8 @@ def concatenate_folder(root:str, file:str) -> list:
 
         file_path = os.path.join(root, file)
         file_path = os.path.normpath(file_path)
+
+        print(file_path)
 
         path_parts = os.path.normpath(root).split(os.sep)
                 
@@ -53,7 +70,6 @@ def initial_check(folder_path) -> list:
 
     return data
 
-
 def create_id_table(data:list):
     unique_camera_id = {}
 
@@ -69,7 +85,6 @@ def create_id_table(data:list):
 
     return df
 
-## This is how to extract metadata from image file
 def extract_img_metadata(image_path):
     try:
         with open(image_path, 'rb') as img_file:
