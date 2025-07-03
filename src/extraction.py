@@ -3,7 +3,8 @@ import exifread
 import ffmpeg
 import pandas as pd
 from datetime import datetime, timedelta
-import piexif
+from tqdm import tqdm
+import time
 from PIL import Image
 
 def load_control_sheet(folder_path):
@@ -19,41 +20,18 @@ def load_control_sheet(folder_path):
     sheet = pd.read_csv(path)
     return sheet
 
-# def concatenate_folder(root:str, file:str) -> list:
-    
-#     if file.endswith((".JPG", ".MP4", ".MOV")):
-
-#         file_path = os.path.join(root, file)
-#         file_path = os.path.normpath(file_path)
-
-#         print(file_path)
-
-#         path_parts = os.path.normpath(root).split(os.sep)
-                
-#         station_id = path_parts[-3] if len(path_parts) == 4 else path_parts[-2]
-
-#         picture_folder = path_parts[-2] if len(path_parts) == 4 else path_parts[-1]
-
-#     if not picture_folder.startswith(("PIC", "VID")) and len(picture_folder.split("_") != 4):
-#         print(f"{file_path} is incorrect path")
-#         return None
-
-#     parts = picture_folder.split("_")
-#     mode, camera_id, memory_id, _ = parts
-
-#     camera_id = camera_id[-3:]
-#     memory_id = memory_id[-3:]
-                
-#     return [station_id, camera_id, memory_id, mode, file_path]
+def _check_extension(dir):
+    if dir.endswith((".JPG", ".MP4", ".MOV")):
+        return True
+    else:
+        return False
 
 def concatenate_folder(root:str, file:str) -> list:
 
-    if file.endswith((".JPG", ".MP4", ".MOV")):
+    if _check_extension(file):
 
         file_path = os.path.join(root, file)
         file_path = os.path.normpath(file_path)
-
-        print(file_path)
 
         path_parts = os.path.normpath(root).split(os.sep)
         
@@ -66,11 +44,8 @@ def initial_check(folder_path) -> list:
 
     """
     load the control sheet and check is the directory is already correct with the sheet
-
     if something there is something miss, dont continue the process and check the corresponding one
-
     q: what if there is something wrong and keep want to continue? so edit the folder name follow the control sheet
-
     note: maybe its better to create the folder based on the control sheet...
     """
 
@@ -79,7 +54,7 @@ def initial_check(folder_path) -> list:
     for root, dirs, files in os.walk(folder_path):
 
         for file in files:
-            if not file.endswith((".JPG", ".MP4", ".MOV")):
+            if not _check_extension(file):
                 continue
             
             data.append(concatenate_folder(root, file))
@@ -103,6 +78,9 @@ def create_id_table(data:list):
 
 def extract_img_metadata(image_path):
     try:
+        with Image.open(image_path) as img:
+            img.verify()
+
         with open(image_path, 'rb') as img_file:
             tags = exifread.process_file(img_file, details= False)
 
@@ -113,8 +91,7 @@ def extract_img_metadata(image_path):
         return [maker, model, datetime]
     
     except (IOError, Exception) as e:
-        print(f"Error reading EXIF data for {image_path}: {e}")
-        return None
+        return [None, None, None]
 
 def extract_vid_metadata(mp4_path):
     try:
@@ -126,8 +103,7 @@ def extract_vid_metadata(mp4_path):
 
         return [dt, duration]
     except ffmpeg.Error as e:
-        print(f"Error extracting metadata for {mp4_path}: {e}")
-        return None
+        return [None, None]
 
 def create_photos_table(data: list):
     photos_data = []
@@ -135,19 +111,15 @@ def create_photos_table(data: list):
 
     """
     inside for loop, check is the filepath is extracted in img/video table so its not extracted twice.
-
     after the extraction add the new table to the existed one,
-
     maybe its better to add this function in intitial check, add a new index in the data represent metadata presence by img/video path
     """
 
-    for row in data:
+    for row in tqdm(data, "Extracting photos"):
         station_id, camera_id, file_path = row
 
         if not file_path.endswith(".JPG"):
             continue
-
-        print(f"extracting: {file_path}")
 
         maker, model, datetime = extract_img_metadata(file_path) 
         
@@ -165,7 +137,7 @@ def create_vid_table(data: list):
     video_data = []
     video_id_counter = 1
 
-    for row in data:
+    for row in tqdm(data, "Extracting Videos"):
         video_id = video_id_counter
         video_id_counter += 1
         station_id, camera_id, file_path = row
@@ -173,7 +145,6 @@ def create_vid_table(data: list):
         if not file_path.endswith((".MOV", ".MP4")):
             continue
 
-        print(f"extracting: {file_path}")
         metadata = extract_vid_metadata(file_path)
 
         if metadata:
@@ -183,9 +154,6 @@ def create_vid_table(data: list):
         else:
             video_data.append([video_id, station_id, camera_id, None, None, file_path])
 
-        
-
     video_df = pd.DataFrame(video_data, columns=["Video_id", "Station_id", "Camera_id", "Datetime", "Duration", "File_path"])
 
     return video_df
-
