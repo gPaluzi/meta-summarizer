@@ -19,8 +19,35 @@ def load_control_sheet(folder_path):
     sheet = pd.read_csv(path)
     return sheet
 
-def concatenate_folder(root:str, file:str) -> list:
+# def concatenate_folder(root:str, file:str) -> list:
     
+#     if file.endswith((".JPG", ".MP4", ".MOV")):
+
+#         file_path = os.path.join(root, file)
+#         file_path = os.path.normpath(file_path)
+
+#         print(file_path)
+
+#         path_parts = os.path.normpath(root).split(os.sep)
+                
+#         station_id = path_parts[-3] if len(path_parts) == 4 else path_parts[-2]
+
+#         picture_folder = path_parts[-2] if len(path_parts) == 4 else path_parts[-1]
+
+#     if not picture_folder.startswith(("PIC", "VID")) and len(picture_folder.split("_") != 4):
+#         print(f"{file_path} is incorrect path")
+#         return None
+
+#     parts = picture_folder.split("_")
+#     mode, camera_id, memory_id, _ = parts
+
+#     camera_id = camera_id[-3:]
+#     memory_id = memory_id[-3:]
+                
+#     return [station_id, camera_id, memory_id, mode, file_path]
+
+def concatenate_folder(root:str, file:str) -> list:
+
     if file.endswith((".JPG", ".MP4", ".MOV")):
 
         file_path = os.path.join(root, file)
@@ -29,22 +56,11 @@ def concatenate_folder(root:str, file:str) -> list:
         print(file_path)
 
         path_parts = os.path.normpath(root).split(os.sep)
-                
-        station_id = path_parts[-3] if len(path_parts) == 4 else path_parts[-2]
+        
+        station_id = path_parts[1]
+        camera_id = path_parts[2]
 
-        picture_folder = path_parts[-2] if len(path_parts) == 4 else path_parts[-1]
-
-    if not picture_folder.startswith(("PIC", "VID")) and len(picture_folder.split("_") != 4):
-        print(f"{file_path} is incorrect path")
-        return None
-
-    parts = picture_folder.split("_")
-    mode, camera_id, memory_id, _ = parts
-
-    camera_id = camera_id[-3:]
-    memory_id = memory_id[-3:]
-                
-    return [station_id, camera_id, memory_id, mode, file_path]
+    return [station_id, camera_id, file_path]
 
 def initial_check(folder_path) -> list:
 
@@ -74,14 +90,14 @@ def create_id_table(data:list):
     unique_camera_id = {}
 
     for row in data:
-        station_id, camera_id, memory_id, mode, _ = row
+        station_id, camera_id, file_path= row
 
         if camera_id not in unique_camera_id:
-            unique_camera_id[camera_id] = [station_id, camera_id, memory_id, mode]
+            unique_camera_id[camera_id] = [station_id, camera_id, file_path]
     
     id_data = list(unique_camera_id.values())
 
-    df = pd.DataFrame(id_data, columns=["Station_id", "Camera_id", "Memory_id", "Mode"])
+    df = pd.DataFrame(id_data, columns=["Station_id", "Camera_id", "File_path"])
 
     return df
 
@@ -126,7 +142,7 @@ def create_photos_table(data: list):
     """
 
     for row in data:
-        _, camera_id, _, _, file_path = row
+        station_id, camera_id, file_path = row
 
         if not file_path.endswith(".JPG"):
             continue
@@ -138,9 +154,9 @@ def create_photos_table(data: list):
         photo_id = photo_id_counter
         photo_id_counter += 1
 
-        photos_data.append([photo_id, camera_id, maker, model, datetime, file_path])
+        photos_data.append([photo_id, station_id, camera_id, maker, model, datetime, file_path])
 
-    photos_df = pd.DataFrame(photos_data, columns=["Photo_id", "Camera_id", "Maker", "Model", "Datetime", "File_path"])
+    photos_df = pd.DataFrame(photos_data, columns=["Photo_id", "Station_Id", "Camera_id", "Maker", "Model", "Datetime", "File_path"])
     photos_df["Datetime"] = pd.to_datetime(photos_df["Datetime"], format='%Y:%m:%d %H:%M:%S')
 
     return photos_df
@@ -152,7 +168,7 @@ def create_vid_table(data: list):
     for row in data:
         video_id = video_id_counter
         video_id_counter += 1
-        _, camera_id, _, _, file_path = row
+        station_id, camera_id, file_path = row
 
         if not file_path.endswith((".MOV", ".MP4")):
             continue
@@ -162,17 +178,14 @@ def create_vid_table(data: list):
 
         if metadata:
             dt, duration = metadata
-            video_data.append([video_id, camera_id, dt, duration, file_path])
+            video_data.append([video_id, station_id, camera_id, dt, duration, file_path])
 
         else:
-            video_data.append([video_id, camera_id, None, None, file_path])
+            video_data.append([video_id, station_id, camera_id, None, None, file_path])
 
         
 
-    video_df = pd.DataFrame(video_data, columns=["Video_id", "Camera_id", "Datetime", "Duration", "File_path"])
+    video_df = pd.DataFrame(video_data, columns=["Video_id", "Station_id", "Camera_id", "Datetime", "Duration", "File_path"])
 
     return video_df
 
-
-if __name__ == "__main__":
-    pass

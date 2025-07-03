@@ -17,17 +17,15 @@ def main():
     data = initial_check(folder_path)
     id_table = create_id_table(data)
 
-    
-
     # Extract metadata
     image_table = create_photos_table(data)
     video_table = create_vid_table(data)
 
 
     # Export raw dataframe contains metadata
-    id_table.to_csv("./outputs/id_table.csv", index= "Camera_id")
-    image_table.to_csv("./outputs/image_table.csv", index= "Camera_id")
-    video_table.to_csv("./outputs/video_table.csv", index= "Camera_id")
+    id_table.to_csv("./outputs/id_table.csv", index= "cameraId")
+    image_table.to_csv("./outputs/image_table.csv", index= "cameraId")
+    video_table.to_csv("./outputs/video_table.csv", index= "cameraId")
 
     # Print statements
     print(f"\n\nTotal inserted camera: {len(id_table)}")

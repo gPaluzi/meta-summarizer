@@ -2,6 +2,7 @@
 
 :: Activate virtual environment
 echo Activating virtual environment...
+
 call virtual_env\Scripts\activate.bat
 
 :: Verify that the virtual environment is activated
