@@ -88,7 +88,7 @@ def create_heatmap(image_table=None, video_table=None, id_table=None):
     video_table["Date"] = video_table["Datetime"].dt.date
 
     # get camera id, station id and date column
-    image_table = image_table[["Station_id", "Date"]]
+    image_table = image_table[["Station_Id", "Date"]]
     video_table = video_table[["Station_id", "Date"]]
 
     # Concate both table with assumption there is no twin id
@@ -125,6 +125,5 @@ def create_heatmap(image_table=None, video_table=None, id_table=None):
 """ create an insertion to missing value in dates feature by concatenate foldername """
 
 if __name__ == "__main__":
-    # id_table, image_table, video_table = load_data()
 
     create_heatmap()

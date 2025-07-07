@@ -78,6 +78,6 @@ def offset_image(corrected_date, exifdict, path):
 if __name__ == "__main__":
 
     sheet = load_control_sheet("./data")
-    path = r".\data\O04\PIC_CT413_M119_L\100EK113\01100153.JPG"
+    path = r""
     date, exifdict = calc_offset(sheet, path)
     offset_image(date, exifdict, path)

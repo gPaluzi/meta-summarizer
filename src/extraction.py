@@ -2,10 +2,10 @@ import os
 import exifread
 import ffmpeg
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from tqdm import tqdm
-import time
 from PIL import Image
+from concurrent.futures import ThreadPoolExecutor
 
 def load_control_sheet(folder_path):
 
@@ -95,7 +95,7 @@ def extract_img_metadata(image_path):
 
 def extract_vid_metadata(mp4_path):
     try:
-        metadata = ffmpeg.probe(mp4_path, v='error', select_streams='v:0', show_entries='stream=codec_name,width,height,nb_frames,duration')
+        metadata = ffmpeg.probe(mp4_path, v='error', show_entries='format_tags=creation_time,format=duration')
 
         datetime_str = metadata.get('streams')[0].get('tags', {}).get("creation_time", {})
         dt = datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S.%fZ')
@@ -105,55 +105,50 @@ def extract_vid_metadata(mp4_path):
     except ffmpeg.Error as e:
         return [None, None]
 
+def process_photos(row):
+    station_id, camera_id, file_path = row
+    if not file_path.endswith(".JPG"):
+        return None
+    
+    maker, model, dt = extract_img_metadata(file_path)
+    return [station_id, camera_id, maker, model, dt, file_path]
+
 def create_photos_table(data: list):
     photos_data = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        result = list(tqdm(executor.map(process_photos, data), total=len(data), desc="Extracting Photos"))
+
     photo_id_counter = 1
-
-    """
-    inside for loop, check is the filepath is extracted in img/video table so its not extracted twice.
-    after the extraction add the new table to the existed one,
-    maybe its better to add this function in intitial check, add a new index in the data represent metadata presence by img/video path
-    """
-
-    for row in tqdm(data, "Extracting photos"):
-        station_id, camera_id, file_path = row
-
-        if not file_path.endswith(".JPG"):
-            continue
-
-        maker, model, datetime = extract_img_metadata(file_path) 
-        
-        photo_id = photo_id_counter
-        photo_id_counter += 1
-
-        photos_data.append([photo_id, station_id, camera_id, maker, model, datetime, file_path])
+    for res in result:
+        if res:
+            station_id, camera_id, maker, model, dt, file_path = res
+            photos_data.append([photo_id_counter, station_id, camera_id, maker, model, dt, file_path])
+            photo_id_counter =+ 1
 
     photos_df = pd.DataFrame(photos_data, columns=["Photo_id", "Station_Id", "Camera_id", "Maker", "Model", "Datetime", "File_path"])
     photos_df["Datetime"] = pd.to_datetime(photos_df["Datetime"], format='%Y:%m:%d %H:%M:%S')
 
     return photos_df
 
+def process_videos(row):
+    station_id, camera_id, file_path = row
+    if not file_path.endswith((".MP4", ".MOV")):
+        return None
+    dt, duration = extract_vid_metadata(file_path)
+    return [station_id, camera_id, dt, duration, file_path]
+
 def create_vid_table(data: list):
     video_data = []
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        result = list(tqdm(executor.map(process_videos, data), total=len(data), desc="Extracting Videos"))
+
     video_id_counter = 1
-
-    for row in tqdm(data, "Extracting Videos"):
-        video_id = video_id_counter
-        video_id_counter += 1
-        station_id, camera_id, file_path = row
-
-        if not file_path.endswith((".MOV", ".MP4")):
-            continue
-
-        metadata = extract_vid_metadata(file_path)
-
-        if metadata:
-            dt, duration = metadata
-            video_data.append([video_id, station_id, camera_id, dt, duration, file_path])
-
-        else:
-            video_data.append([video_id, station_id, camera_id, None, None, file_path])
+    for res in result:
+        if res:
+            station_id, camera_id, dt, duration, file_path = res
+            video_data.append([video_id_counter, station_id, camera_id, dt, duration, file_path])
+            video_id_counter =+ 1
 
     video_df = pd.DataFrame(video_data, columns=["Video_id", "Station_id", "Camera_id", "Datetime", "Duration", "File_path"])
-
     return video_df
