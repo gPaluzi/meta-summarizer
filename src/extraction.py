@@ -37,8 +37,9 @@ def concatenate_folder(root:str, file:str) -> list:
         
         station_id = path_parts[1]
         camera_id = path_parts[2]
+        filesize = os.path.getsize(file_path)
 
-    return [station_id, camera_id, file_path]
+    return [station_id, camera_id, filesize, file_path]
 
 def initial_check(folder_path) -> list:
 
@@ -65,18 +66,19 @@ def create_id_table(data:list):
     unique_camera_id = {}
 
     for row in data:
-        station_id, camera_id, file_path= row
+        station_id, camera_id, filesize, file_path= row
 
         if camera_id not in unique_camera_id:
             unique_camera_id[camera_id] = [station_id, camera_id, file_path]
     
     id_data = list(unique_camera_id.values())
 
-    df = pd.DataFrame(id_data, columns=["Station_id", "Camera_id", "File_path"])
+    df = pd.DataFrame(id_data, columns=["stationID", "cameraID", "filePath"])
 
     return df
 
 def extract_img_metadata(image_path):
+    filesize = os.path.getsize(image_path)
     try:
         with Image.open(image_path) as img:
             img.verify()
@@ -87,13 +89,15 @@ def extract_img_metadata(image_path):
             maker = tags.get('Image Make', None)
             model = tags.get('Image Model', None)
             datetime = tags.get('EXIF DateTimeOriginal', None)
+            
 
-        return [maker, model, datetime]
+        return [maker, model, datetime, filesize]
     
     except (IOError, Exception) as e:
-        return [None, None, None]
+        return [None, None, None, filesize]
 
 def extract_vid_metadata(mp4_path):
+    filesize = os.path.getsize(mp4_path)
     try:
         metadata = ffmpeg.probe(mp4_path, v='error', show_entries='format_tags=creation_time,format=duration')
 
@@ -101,17 +105,17 @@ def extract_vid_metadata(mp4_path):
         dt = datetime.strptime(datetime_str, '%Y-%m-%dT%H:%M:%S.%fZ')
         duration = metadata.get('streams')[0].get('duration')
 
-        return [dt, duration]
+        return [dt, duration, filesize]
     except ffmpeg.Error as e:
-        return [None, None]
+        return [None, None, filesize]
 
 def process_photos(row):
-    station_id, camera_id, file_path = row
+    station_id, camera_id, filesize, file_path= row
     if not file_path.endswith(".JPG"):
         return None
     
-    maker, model, dt = extract_img_metadata(file_path)
-    return [station_id, camera_id, maker, model, dt, file_path]
+    maker, model, dt, filesize = extract_img_metadata(file_path)
+    return [station_id, camera_id, maker, model, dt, filesize, file_path]
 
 def create_photos_table(data: list):
     photos_data = []
@@ -121,21 +125,21 @@ def create_photos_table(data: list):
     photo_id_counter = 1
     for res in result:
         if res:
-            station_id, camera_id, maker, model, dt, file_path = res
-            photos_data.append([photo_id_counter, station_id, camera_id, maker, model, dt, file_path])
+            station_id, camera_id, maker, model, dt, file_size, file_path = res
+            photos_data.append([photo_id_counter, station_id, camera_id, maker, model, dt, file_size, file_path])
             photo_id_counter =+ 1
 
-    photos_df = pd.DataFrame(photos_data, columns=["Photo_id", "Station_Id", "Camera_id", "Maker", "Model", "Datetime", "File_path"])
-    photos_df["Datetime"] = pd.to_datetime(photos_df["Datetime"], format='%Y:%m:%d %H:%M:%S')
+    photos_df = pd.DataFrame(photos_data, columns=["photoID", "stationID", "cameraID", "maker", "model", "dateTime", "filesize", "filePath"])
+    photos_df["dateTime"] = pd.to_datetime(photos_df["dateTime"], format='%Y:%m:%d %H:%M:%S')
 
     return photos_df
 
 def process_videos(row):
-    station_id, camera_id, file_path = row
+    station_id, camera_id, filesize, file_path = row
     if not file_path.endswith((".MP4", ".MOV")):
         return None
-    dt, duration = extract_vid_metadata(file_path)
-    return [station_id, camera_id, dt, duration, file_path]
+    dt, duration, filesize = extract_vid_metadata(file_path)
+    return [station_id, camera_id, dt, duration, filesize, file_path]
 
 def create_vid_table(data: list):
     video_data = []
@@ -146,9 +150,9 @@ def create_vid_table(data: list):
     video_id_counter = 1
     for res in result:
         if res:
-            station_id, camera_id, dt, duration, file_path = res
-            video_data.append([video_id_counter, station_id, camera_id, dt, duration, file_path])
+            station_id, camera_id, dt, duration, filesize, file_path = res
+            video_data.append([video_id_counter, station_id, camera_id, dt, duration, filesize, file_path])
             video_id_counter =+ 1
 
-    video_df = pd.DataFrame(video_data, columns=["Video_id", "Station_id", "Camera_id", "Datetime", "Duration", "File_path"])
+    video_df = pd.DataFrame(video_data, columns=["videoID", "stationID", "cameraID", "dateTime", "duration", "filesize", "filePath"])
     return video_df

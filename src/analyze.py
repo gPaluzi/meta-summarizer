@@ -9,9 +9,10 @@ from datetime import datetime
 
 def load_data() -> pd.DataFrame: 
     print("Reading table...")
-    id_table = pd.read_csv("./outputs/id_table.csv", index_col="Camera_id")
-    image_table = pd.read_csv("./outputs/image_table.csv", index_col="Camera_id")
-    video_table = pd.read_csv("./outputs/video_table.csv", index_col="Camera_id")
+    id_table = pd.read_csv("./outputs/id_table.csv")
+    image_table = pd.read_csv("./outputs/image_table.csv")
+    video_table = pd.read_csv("./outputs/video_table.csv")
+
     
     return id_table, image_table, video_table
 
@@ -76,38 +77,39 @@ def create_heatmap(image_table=None, video_table=None, id_table=None):
         id_table, image_table, video_table = load_data()
 
     # join table with id
-    image_table = pd.merge(image_table, id_table, on="Camera_id", how="left")
-    video_table = pd.merge(video_table, id_table, on="Camera_id", how="left")
+    image_table = pd.merge(image_table, id_table, on=["cameraID", "stationID"], how="left")
+    video_table = pd.merge(video_table, id_table, on=["cameraID", "stationID"], how="left")
 
     # convert string to datetime type
-    image_table["Datetime"] = pd.to_datetime(image_table["Datetime"], format='%Y-%m-%d %H:%M:%S')
-    video_table["Datetime"] = pd.to_datetime(video_table["Datetime"], format='%Y-%m-%d %H:%M:%S')
+    image_table["dateTime"] = pd.to_datetime(image_table["dateTime"], format='%Y-%m-%d %H:%M:%S')
+    video_table["dateTime"] = pd.to_datetime(video_table["dateTime"], format='%Y-%m-%d %H:%M:%S')
 
     # Extract date from datetime
-    image_table['Date'] = image_table["Datetime"].dt.date
-    video_table["Date"] = video_table["Datetime"].dt.date
+    image_table['date'] = image_table["dateTime"].dt.date
+    video_table["date"] = video_table["dateTime"].dt.date
 
     # get camera id, station id and date column
-    image_table = image_table[["Station_Id", "Date"]]
-    video_table = video_table[["Station_id", "Date"]]
+    image_table = image_table[["cameraID", "stationID", "date"]]
+    video_table = video_table[["cameraID", "stationID", "date"]]
 
     # Concate both table with assumption there is no twin id
     table = pd.concat([image_table, video_table]).dropna()
 
     # Count number of capture per camera per day
-    capture_counts = table.groupby(["Camera_id", "Date"]).size().reset_index(name='capture_count')
+    capture_counts = table.groupby(["cameraID", "date"]).size().reset_index(name='capture_count')
 
     # Create pivot, and sort it by station id
-    pivot_table = capture_counts.pivot(index='Camera_id', columns='Date', values='capture_count')
-    pivot_table = pd.merge(pivot_table, id_table, on="Camera_id", how="left")
-    pivot_table = pivot_table.sort_values(by="Station_id")
+    pivot_table = capture_counts.pivot(index='cameraID', columns='date', values='capture_count')
+    pivot_table = pd.merge(pivot_table, id_table, on="cameraID", how="left")
+    pivot_table = pivot_table.sort_values(by="stationID")
     pivot_table = pivot_table.iloc[:, :-4]
+    print(pivot_table.head())
 
     # Create plot
     plt.figure(figsize=(10,6))
 
     palette = sns.color_palette("flare", as_cmap=True)
-    sns.heatmap(pivot_table, cmap=palette, cbar_kws={'label': 'Capture Count'},
+    sns.heatmap(pivot_table.set_index("cameraID"), cmap=palette, cbar_kws={'label': 'Capture Count'},
                 zorder=2)
 
     plt.title('Camera Capture Counts by Date')
@@ -127,3 +129,4 @@ def create_heatmap(image_table=None, video_table=None, id_table=None):
 if __name__ == "__main__":
 
     create_heatmap()
+    # print("Columns in video_table:", video_table.columns.tolist())
